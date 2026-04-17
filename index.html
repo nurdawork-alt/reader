@@ -19,8 +19,8 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
 
     <title>Читалка</title>
-    <script type="module" crossorigin src="/reader/assets/index-K7W9gudy.js"></script>
-    <link rel="stylesheet" crossorigin href="/reader/assets/index-D3iaRrwS.css">
+    <script type="module" crossorigin src="/reader/assets/index-DDmdCMya.js"></script>
+    <link rel="stylesheet" crossorigin href="/reader/assets/index-CDyvTKsK.css">
   </head>
   <body>
     <div id="app">
@@ -105,6 +105,11 @@
             <label for="font-size">Размер шрифта</label>
             <input id="font-size" type="range" min="80" max="180" step="5" />
             <span id="font-size-value" class="muted"></span>
+          </div>
+          <div class="setting-row">
+            <label>Приложение</label>
+            <button id="btn-force-update" type="button" class="danger-btn">Обновить до последней версии</button>
+            <span class="muted small">Очистит кэш и перезагрузит. Книги и прогресс сохранятся.</span>
           </div>
         </div>
       </aside>
