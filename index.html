@@ -19,13 +19,13 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
 
     <title>Читалка</title>
-    <script type="module" crossorigin src="/reader/assets/index-DIikgsuq.js"></script>
-    <link rel="stylesheet" crossorigin href="/reader/assets/index-u8euKr1Q.css">
+    <script type="module" crossorigin src="/reader/assets/index-Qb7kWgFy.js"></script>
+    <link rel="stylesheet" crossorigin href="/reader/assets/index-D3iaRrwS.css">
   </head>
   <body>
     <div id="app">
       <!-- Экран библиотеки -->
-      <section id="library-view" class="view">
+      <section id="library-view" class="view active">
         <header class="top-bar">
           <h1 class="title">Библиотека</h1>
           <button id="btn-settings" class="icon-btn" aria-label="Настройки">⚙️</button>
@@ -46,14 +46,18 @@
       </section>
 
       <!-- Экран чтения -->
-      <section id="reader-view" class="view" hidden>
+      <section id="reader-view" class="view">
         <header class="top-bar reader-bar">
           <button id="btn-back" class="icon-btn" aria-label="Назад">←</button>
           <h2 id="reader-title" class="title ellipsis"></h2>
           <button id="btn-toc" class="icon-btn" aria-label="Оглавление">☰</button>
         </header>
 
-        <div id="viewer" class="viewer"></div>
+        <div id="viewer" class="viewer">
+          <div id="reader-loading" class="reader-loading"><div class="spinner"></div></div>
+        </div>
+
+        <div id="progress-track" class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
 
         <div class="reader-controls">
           <button id="btn-prev" class="nav-btn" aria-label="Предыдущая страница">‹</button>
@@ -62,7 +66,7 @@
         </div>
 
         <!-- Панель оглавления -->
-        <aside id="toc-panel" class="panel" hidden>
+        <aside id="toc-panel" class="panel">
           <header class="panel-header">
             <h3>Оглавление</h3>
             <button id="btn-close-toc" class="icon-btn" aria-label="Закрыть">✕</button>
@@ -79,8 +83,11 @@
         </aside>
       </section>
 
+      <!-- Общий backdrop для панелей -->
+      <div id="backdrop" class="backdrop"></div>
+
       <!-- Панель настроек -->
-      <aside id="settings-panel" class="panel" hidden>
+      <aside id="settings-panel" class="panel">
         <header class="panel-header">
           <h3>Настройки</h3>
           <button id="btn-close-settings" class="icon-btn" aria-label="Закрыть">✕</button>
