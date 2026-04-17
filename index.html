@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="manifest.webmanifest" />
+
+    <!-- iOS PWA support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Читалка" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+
+    <!-- Generic favicon -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+
+    <title>Читалка</title>
+    <script type="module" crossorigin src="/reader/assets/index-BQFznZLQ.js"></script>
+    <link rel="stylesheet" crossorigin href="/reader/assets/index-ddmMDB3T.css">
+  </head>
+  <body>
+    <div id="app">
+      <!-- Экран библиотеки -->
+      <section id="library-view" class="view">
+        <header class="top-bar">
+          <h1 class="title">Библиотека</h1>
+          <button id="btn-settings" class="icon-btn" aria-label="Настройки">⚙️</button>
+        </header>
+
+        <div id="library-grid" class="library-grid">
+          <!-- Сюда вставляются карточки книг -->
+        </div>
+
+        <div class="empty-state" id="empty-state" hidden>
+          <p>Здесь пока пусто.</p>
+          <p class="muted">Нажми «+», чтобы добавить EPUB с телефона.</p>
+        </div>
+
+        <label class="fab" for="file-input" aria-label="Добавить книгу">+
+          <input id="file-input" type="file" accept=".epub,application/epub+zip" hidden />
+        </label>
+      </section>
+
+      <!-- Экран чтения -->
+      <section id="reader-view" class="view" hidden>
+        <header class="top-bar reader-bar">
+          <button id="btn-back" class="icon-btn" aria-label="Назад">←</button>
+          <h2 id="reader-title" class="title ellipsis"></h2>
+          <button id="btn-toc" class="icon-btn" aria-label="Оглавление">☰</button>
+        </header>
+
+        <div id="viewer" class="viewer"></div>
+
+        <div class="reader-controls">
+          <button id="btn-prev" class="nav-btn" aria-label="Предыдущая страница">‹</button>
+          <div id="progress-label" class="progress-label">0%</div>
+          <button id="btn-next" class="nav-btn" aria-label="Следующая страница">›</button>
+        </div>
+
+        <!-- Панель оглавления -->
+        <aside id="toc-panel" class="panel" hidden>
+          <header class="panel-header">
+            <h3>Оглавление</h3>
+            <button id="btn-close-toc" class="icon-btn" aria-label="Закрыть">✕</button>
+          </header>
+          <div class="panel-tabs">
+            <button class="tab-btn active" data-tab="toc">Содержание</button>
+            <button class="tab-btn" data-tab="search">Поиск</button>
+          </div>
+          <div id="toc-list" class="panel-body"></div>
+          <div id="search-tab" class="panel-body" hidden>
+            <input id="search-input" type="search" placeholder="Поиск по тексту…" />
+            <div id="search-results"></div>
+          </div>
+        </aside>
+      </section>
+
+      <!-- Панель настроек -->
+      <aside id="settings-panel" class="panel" hidden>
+        <header class="panel-header">
+          <h3>Настройки</h3>
+          <button id="btn-close-settings" class="icon-btn" aria-label="Закрыть">✕</button>
+        </header>
+        <div class="panel-body">
+          <div class="setting-row">
+            <label>Тема</label>
+            <div class="segmented" id="theme-switch">
+              <button data-theme="light">Свет</button>
+              <button data-theme="sepia">Сепия</button>
+              <button data-theme="dark">Тьма</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label for="font-size">Размер шрифта</label>
+            <input id="font-size" type="range" min="80" max="180" step="5" />
+            <span id="font-size-value" class="muted"></span>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+  </body>
+</html>
