@@ -22,6 +22,11 @@ const btnNext = document.getElementById('btn-next');
 const btnToc = document.getElementById('btn-toc');
 const btnCloseToc = document.getElementById('btn-close-toc');
 const viewerOverlay = document.getElementById('viewer-overlay');
+const viewerEl = document.getElementById('viewer');
+
+// Флаг блокировки повторных вызовов во время анимации перелистывания
+let turnPending = false;
+const TURN_DURATION = 180; // должно совпадать с transition в .viewer iframe
 
 // Темы для epub.js — применяются к итератору текста внутри iframe.
 const READER_THEMES = {
@@ -31,8 +36,8 @@ const READER_THEMES = {
 };
 
 export function initReader() {
-  btnPrev.addEventListener('click', () => rendition && rendition.prev());
-  btnNext.addEventListener('click', () => rendition && rendition.next());
+  btnPrev.addEventListener('click', () => turnPage('prev'));
+  btnNext.addEventListener('click', () => turnPage('next'));
 
   btnToc.addEventListener('click', () => openPanel(tocPanel));
   btnCloseToc.addEventListener('click', () => closePanel(tocPanel));
@@ -53,8 +58,8 @@ export function initReader() {
   // Клавиши стрелок на десктопе — удобно при тестировании.
   document.addEventListener('keydown', (e) => {
     if (!document.getElementById('reader-view').classList.contains('active')) return;
-    if (e.key === 'ArrowLeft') rendition && rendition.prev();
-    if (e.key === 'ArrowRight') rendition && rendition.next();
+    if (e.key === 'ArrowLeft') turnPage('prev');
+    if (e.key === 'ArrowRight') turnPage('next');
   });
 
   // Свайпы и тапы через прозрачный overlay поверх iframe.
@@ -269,16 +274,15 @@ function attachOverlayInteractions(el) {
 
     // Горизонтальный свайп
     if (Math.abs(dx) > SWIPE_DIST && Math.abs(dy) < SWIPE_MAX_Y && dt < SWIPE_MAX_DUR) {
-      if (dx < 0) rendition?.next();
-      else rendition?.prev();
+      turnPage(dx < 0 ? 'next' : 'prev');
       return;
     }
 
     // Тап по левой/правой трети — листать
     if (!moved && dt < TAP_MAX_DUR) {
       const w = el.clientWidth;
-      if (x < w * 0.33) rendition?.prev();
-      else if (x > w * 0.67) rendition?.next();
+      if (x < w * 0.33) turnPage('prev');
+      else if (x > w * 0.67) turnPage('next');
       // Центральная треть — ничего (в будущем можно тоггл UI)
     }
   };
@@ -308,6 +312,38 @@ function attachOverlayInteractions(el) {
   el.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
   el.addEventListener('mouseup', (e) => handleEnd(e.clientX, e.clientY));
   el.addEventListener('mouseleave', () => { tracking = false; });
+}
+
+// Анимированное перелистывание.
+// Последовательность: добавляем класс (iframe fade+slide out) →
+// ждём конца transition → переключаем страницу → снимаем класс (fade+slide in).
+async function turnPage(direction) {
+  if (!rendition || turnPending) return;
+  turnPending = true;
+
+  const cls = direction === 'next' ? 'turn-next' : 'turn-prev';
+  viewerEl.classList.add(cls);
+
+  // Даём браузеру один кадр на старт transition и ~TURN_DURATION на её проигрыш.
+  await delay(TURN_DURATION);
+
+  try {
+    if (direction === 'next') await rendition.next();
+    else await rendition.prev();
+  } catch (err) {
+    console.warn('turn page failed', err);
+  }
+
+  // Ждём отрисовки новой страницы, затем плавно возвращаем на место.
+  requestAnimationFrame(() => {
+    viewerEl.classList.remove(cls);
+    // Разрешаем следующий ход после завершения fade-in.
+    setTimeout(() => { turnPending = false; }, TURN_DURATION);
+  });
+}
+
+function delay(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 function debounce(fn, ms) {

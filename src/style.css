@@ -291,6 +291,22 @@ body {
   background: var(--bg);
 }
 
+/* Анимация перелистывания страниц.
+   Во время перехода: iframe фейдится + слегка уходит в сторону.
+   После переключения класс снимается — iframe возвращается на центр с fade-in. */
+.viewer iframe {
+  transition: opacity 160ms var(--ease), transform 180ms var(--ease);
+  will-change: opacity, transform;
+}
+.viewer.turn-next iframe {
+  opacity: 0;
+  transform: translateX(-18px);
+}
+.viewer.turn-prev iframe {
+  opacity: 0;
+  transform: translateX(18px);
+}
+
 /* Прозрачный слой поверх iframe для надёжного перехвата свайпов/тапов на iOS.
    touch-action: none запрещает браузеру интерпретировать жесты (скролл/зум),
    а мы получаем все события. */
