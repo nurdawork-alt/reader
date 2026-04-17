@@ -1,7 +1,7 @@
 // Минимальный Service Worker: cache-first для оболочки приложения.
 // Книги НЕ кэшируются тут — они лежат в IndexedDB.
 // Версию меняй при выкатке, чтобы SW обновил кэш.
-const CACHE_VERSION = 'mo38639e';
+const CACHE_VERSION = 'mo38b8ch';
 const CACHE_NAME = `reader-shell-${CACHE_VERSION}`;
 
 // Список того, что хотим заранее положить в кэш.
