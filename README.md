@@ -18,7 +18,19 @@ npm run preview
 
 ## Деплой
 
-Пуш в `main` → GitHub Actions собирает и публикует на GitHub Pages.
+Публикация на GitHub Pages командой:
+
+```bash
+npm run deploy
+```
+
+Что она делает: собирает `dist/` → пушит его в ветку `gh-pages` → GitHub Pages раздаёт с `https://nurdawork-alt.github.io/reader/`.
+
+> Есть готовый workflow `.github/workflows/deploy.yml` для автодеплоя через GitHub Actions, но он выключен (закомментирован `push` триггер) из-за блокировки биллинга GitHub Actions. Когда биллинг починишь — раскомментируй триггер и `build_type` в Pages обратно на `workflow`.
+
+## URL
+
+Live: **https://nurdawork-alt.github.io/reader/**
 
 ## Структура
 

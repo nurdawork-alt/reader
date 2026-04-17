@@ -1,8 +1,10 @@
 name: Deploy to GitHub Pages
 
 on:
-  push:
-    branches: [main]
+  # Автотриггер отключён, пока биллинг GitHub Actions заблокирован.
+  # Когда починишь — раскомментируй блок push ниже.
+  # push:
+  #   branches: [main]
   workflow_dispatch:
 
 permissions:
