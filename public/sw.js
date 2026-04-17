@@ -43,24 +43,40 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // Кросс-оригинальные запросы не трогаем (например, если кто-то подтянет CDN).
+  // Кросс-оригинальные запросы не трогаем.
   if (url.origin !== self.location.origin) return;
 
-  // Cache-first со стратегией обновления в фоне.
-  event.respondWith(
-    caches.match(req).then((cached) => {
-      const networkFetch = fetch(req)
+  // === Network-first для HTML/навигации ===
+  // Критично: HTML всегда получаем свежий с сервера (если есть сеть).
+  // Это гарантирует что обновлённый index.html со ссылками на новые JS-хэши
+  // всегда доходит до пользователя. Кэш используется ТОЛЬКО офлайн.
+  if (req.mode === 'navigate' || req.destination === 'document') {
+    event.respondWith(
+      fetch(req)
         .then((resp) => {
-          // Класть в кэш только успешные базовые ответы.
-          if (resp && resp.status === 200 && resp.type === 'basic') {
+          if (resp && resp.status === 200) {
             const copy = resp.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
           }
           return resp;
         })
-        .catch(() => cached); // оффлайн-фолбэк
+        .catch(() => caches.match(req).then((c) => c || caches.match('./index.html') || caches.match('./')))
+    );
+    return;
+  }
 
-      return cached || networkFetch;
+  // === Cache-first для остального ===
+  // JS/CSS/иконки имеют хэши в именах → стабильны → кэшируем навсегда.
+  event.respondWith(
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      return fetch(req).then((resp) => {
+        if (resp && resp.status === 200 && resp.type === 'basic') {
+          const copy = resp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        }
+        return resp;
+      }).catch(() => cached);
     })
   );
 });
