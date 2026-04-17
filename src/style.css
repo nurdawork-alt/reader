@@ -37,6 +37,9 @@
 html, body, #app { height: 100%; }
 html, body { margin: 0; padding: 0; }
 
+/* Атрибут hidden должен побеждать любые display: flex/block правила ниже */
+[hidden] { display: none !important; }
+
 body {
   background: var(--bg);
   color: var(--fg);
