@@ -21,6 +21,7 @@ const btnPrev = document.getElementById('btn-prev');
 const btnNext = document.getElementById('btn-next');
 const btnToc = document.getElementById('btn-toc');
 const btnCloseToc = document.getElementById('btn-close-toc');
+const viewerOverlay = document.getElementById('viewer-overlay');
 
 // Темы для epub.js — применяются к итератору текста внутри iframe.
 const READER_THEMES = {
@@ -55,6 +56,11 @@ export function initReader() {
     if (e.key === 'ArrowLeft') rendition && rendition.prev();
     if (e.key === 'ArrowRight') rendition && rendition.next();
   });
+
+  // Свайпы и тапы через прозрачный overlay поверх iframe.
+  // Это самый надёжный способ на iOS: iframe touch events не всплывают,
+  // хуки epub.js не всегда срабатывают, а overlay ловит всё гарантированно.
+  attachOverlayInteractions(viewerOverlay);
 }
 
 export async function openBook(bookId) {
@@ -81,10 +87,6 @@ export async function openBook(bookId) {
   for (const [name, rules] of Object.entries(READER_THEMES)) {
     rendition.themes.register(name, rules);
   }
-
-  // Вешаем свайпы/тапы на каждую секцию в iframe (внешний listener на viewer не ловит
-  // touch-события из-за iframe boundary — это ключевой фикс свайпов).
-  rendition.hooks.content.register((contents) => attachIframeInteractions(contents));
 
   await book.ready;
 
@@ -233,41 +235,36 @@ function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// --- Interactions inside iframe (свайпы + тапы по краям) ---
-// Вызывается для каждой секции книги при её загрузке.
-function attachIframeInteractions(contents) {
-  const doc = contents?.document;
-  if (!doc) return;
+// --- Interactions через прозрачный overlay поверх iframe ---
+// Вешается ОДИН РАЗ в initReader, работает для всех книг.
+function attachOverlayInteractions(el) {
+  if (!el) return;
 
   let startX = 0, startY = 0, startT = 0, tracking = false, moved = false;
 
   const SWIPE_DIST = 40;      // мин длина свайпа (px)
-  const SWIPE_MAX_Y = 70;     // макс вертикальное отклонение
-  const SWIPE_MAX_DUR = 700;  // макс время свайпа (ms)
+  const SWIPE_MAX_Y = 80;     // макс вертикальное отклонение
+  const SWIPE_MAX_DUR = 800;  // макс время свайпа (ms)
   const TAP_MAX_DUR = 400;    // макс время тапа
-  const MOVE_THRESHOLD = 10;  // если сдвинули больше — это уже не тап
+  const MOVE_THRESHOLD = 10;  // порог определения движения
 
-  doc.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) { tracking = false; return; }
-    const t = e.touches[0];
-    startX = t.clientX; startY = t.clientY; startT = Date.now();
+  const handleStart = (x, y) => {
+    startX = x; startY = y; startT = Date.now();
     tracking = true; moved = false;
-  }, { passive: true });
+  };
 
-  doc.addEventListener('touchmove', (e) => {
+  const handleMove = (x, y) => {
     if (!tracking) return;
-    const t = e.touches[0];
-    if (Math.abs(t.clientX - startX) > MOVE_THRESHOLD || Math.abs(t.clientY - startY) > MOVE_THRESHOLD) {
+    if (Math.abs(x - startX) > MOVE_THRESHOLD || Math.abs(y - startY) > MOVE_THRESHOLD) {
       moved = true;
     }
-  }, { passive: true });
+  };
 
-  doc.addEventListener('touchend', (e) => {
+  const handleEnd = (x, y) => {
     if (!tracking) return;
     tracking = false;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - startX;
-    const dy = t.clientY - startY;
+    const dx = x - startX;
+    const dy = y - startY;
     const dt = Date.now() - startT;
 
     // Горизонтальный свайп
@@ -277,17 +274,40 @@ function attachIframeInteractions(contents) {
       return;
     }
 
-    // Тап по краям: левая/правая треть экрана листают страницы
+    // Тап по левой/правой трети — листать
     if (!moved && dt < TAP_MAX_DUR) {
-      // Не обрабатываем тапы по ссылкам внутри текста
-      const target = e.target;
-      if (target && target.closest && target.closest('a')) return;
-
-      const w = doc.documentElement.clientWidth || doc.body.clientWidth;
-      if (t.clientX < w * 0.33) rendition?.prev();
-      else if (t.clientX > w * 0.67) rendition?.next();
+      const w = el.clientWidth;
+      if (x < w * 0.33) rendition?.prev();
+      else if (x > w * 0.67) rendition?.next();
+      // Центральная треть — ничего (в будущем можно тоггл UI)
     }
-  }, { passive: true });
+  };
+
+  // Touch events
+  el.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) { tracking = false; return; }
+    const t = e.touches[0];
+    handleStart(t.clientX, t.clientY);
+  }, { passive: false });
+
+  el.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+    const t = e.touches[0];
+    handleMove(t.clientX, t.clientY);
+  }, { passive: false });
+
+  el.addEventListener('touchend', (e) => {
+    const t = e.changedTouches[0];
+    handleEnd(t.clientX, t.clientY);
+  }, { passive: false });
+
+  el.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
+
+  // Mouse fallback (для десктопа)
+  el.addEventListener('mousedown', (e) => handleStart(e.clientX, e.clientY));
+  el.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
+  el.addEventListener('mouseup', (e) => handleEnd(e.clientX, e.clientY));
+  el.addEventListener('mouseleave', () => { tracking = false; });
 }
 
 function debounce(fn, ms) {

@@ -291,6 +291,21 @@ body {
   background: var(--bg);
 }
 
+/* Прозрачный слой поверх iframe для надёжного перехвата свайпов/тапов на iOS.
+   touch-action: none запрещает браузеру интерпретировать жесты (скролл/зум),
+   а мы получаем все события. */
+.viewer-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: transparent;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: pointer;
+}
+
 /* Loading spinner при открытии книги */
 .reader-loading {
   position: absolute;
