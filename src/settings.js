@@ -1,5 +1,6 @@
 import { loadSettings, saveSettings } from './db.js';
 import { setTheme, setFontScale } from './reader.js';
+import { openPanel, closePanel } from './panels.js';
 
 const DEFAULTS = {
   theme: 'light',
@@ -19,8 +20,8 @@ export async function initSettings() {
   const saved = await loadSettings();
   if (saved) Object.assign(state, saved);
 
-  btnOpen.addEventListener('click', () => { panel.hidden = false; });
-  btnClose.addEventListener('click', () => { panel.hidden = true; });
+  btnOpen.addEventListener('click', () => openPanel(panel));
+  btnClose.addEventListener('click', () => closePanel(panel));
 
   themeSwitch.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-theme]');

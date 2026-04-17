@@ -1,5 +1,6 @@
 import ePub from 'epubjs';
 import { getBook, getProgress, saveProgress } from './db.js';
+import { openPanel, closePanel } from './panels.js';
 
 let book = null;
 let rendition = null;
@@ -9,6 +10,7 @@ let searchResultsCache = [];
 const viewer = document.getElementById('viewer');
 const titleEl = document.getElementById('reader-title');
 const progressLabel = document.getElementById('progress-label');
+const progressFill = document.getElementById('progress-fill');
 const tocPanel = document.getElementById('toc-panel');
 const tocList = document.getElementById('toc-list');
 const searchTab = document.getElementById('search-tab');
@@ -31,8 +33,8 @@ export function initReader() {
   btnPrev.addEventListener('click', () => rendition && rendition.prev());
   btnNext.addEventListener('click', () => rendition && rendition.next());
 
-  btnToc.addEventListener('click', () => { tocPanel.hidden = false; });
-  btnCloseToc.addEventListener('click', () => { tocPanel.hidden = true; });
+  btnToc.addEventListener('click', () => openPanel(tocPanel));
+  btnCloseToc.addEventListener('click', () => closePanel(tocPanel));
 
   // Вкладки «Содержание / Поиск»
   tocPanel.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -49,13 +51,10 @@ export function initReader() {
 
   // Клавиши стрелок на десктопе — удобно при тестировании.
   document.addEventListener('keydown', (e) => {
-    if (document.getElementById('reader-view').hidden) return;
+    if (!document.getElementById('reader-view').classList.contains('active')) return;
     if (e.key === 'ArrowLeft') rendition && rendition.prev();
     if (e.key === 'ArrowRight') rendition && rendition.next();
   });
-
-  // Свайпы по области просмотра
-  attachSwipeNav(viewer);
 }
 
 export async function openBook(bookId) {
@@ -83,6 +82,10 @@ export async function openBook(bookId) {
     rendition.themes.register(name, rules);
   }
 
+  // Вешаем свайпы/тапы на каждую секцию в iframe (внешний listener на viewer не ловит
+  // touch-события из-за iframe boundary — это ключевой фикс свайпов).
+  rendition.hooks.content.register((contents) => attachIframeInteractions(contents));
+
   await book.ready;
 
   // Восстановим прогресс или начнём с начала.
@@ -102,6 +105,7 @@ export async function openBook(bookId) {
     const percentage = Math.round((location?.start?.percentage || 0) * 100);
     if (cfi) saveProgress(bookId, cfi, percentage).catch(console.error);
     progressLabel.textContent = `${percentage}%`;
+    if (progressFill) progressFill.style.width = `${percentage}%`;
   });
 
   // Рендер оглавления.
@@ -125,6 +129,8 @@ export async function closeBook() {
   searchResultsEl.innerHTML = '';
   searchInput.value = '';
   searchResultsCache = [];
+  if (progressFill) progressFill.style.width = '0%';
+  progressLabel.textContent = '0%';
 }
 
 // --- Настройки, применяемые к активному чтению ---
@@ -161,7 +167,7 @@ function renderTOC(toc) {
       row.textContent = item.label.trim();
       row.addEventListener('click', () => {
         rendition.display(item.href);
-        tocPanel.hidden = true;
+        closePanel(tocPanel);
       });
       tocList.appendChild(row);
       if (item.subitems && item.subitems.length) build(item.subitems, depth + 1);
@@ -201,7 +207,7 @@ async function runSearch() {
     row.innerHTML = highlightExcerpt(r.excerpt, q);
     row.addEventListener('click', () => {
       rendition.display(r.cfi);
-      tocPanel.hidden = true;
+      closePanel(tocPanel);
     });
     searchResultsEl.appendChild(row);
   }
@@ -227,26 +233,59 @@ function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// --- Swipe ---
+// --- Interactions inside iframe (свайпы + тапы по краям) ---
+// Вызывается для каждой секции книги при её загрузке.
+function attachIframeInteractions(contents) {
+  const doc = contents?.document;
+  if (!doc) return;
 
-function attachSwipeNav(el) {
-  let startX = 0, startY = 0, startT = 0, tracking = false;
+  let startX = 0, startY = 0, startT = 0, tracking = false, moved = false;
 
-  el.addEventListener('touchstart', (e) => {
+  const SWIPE_DIST = 40;      // мин длина свайпа (px)
+  const SWIPE_MAX_Y = 70;     // макс вертикальное отклонение
+  const SWIPE_MAX_DUR = 700;  // макс время свайпа (ms)
+  const TAP_MAX_DUR = 400;    // макс время тапа
+  const MOVE_THRESHOLD = 10;  // если сдвинули больше — это уже не тап
+
+  doc.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) { tracking = false; return; }
     const t = e.touches[0];
     startX = t.clientX; startY = t.clientY; startT = Date.now();
-    tracking = true;
+    tracking = true; moved = false;
   }, { passive: true });
 
-  el.addEventListener('touchend', (e) => {
+  doc.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+    const t = e.touches[0];
+    if (Math.abs(t.clientX - startX) > MOVE_THRESHOLD || Math.abs(t.clientY - startY) > MOVE_THRESHOLD) {
+      moved = true;
+    }
+  }, { passive: true });
+
+  doc.addEventListener('touchend', (e) => {
     if (!tracking) return;
     tracking = false;
     const t = e.changedTouches[0];
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
     const dt = Date.now() - startT;
-    if (Math.abs(dx) > 40 && Math.abs(dy) < 60 && dt < 600) {
-      if (dx < 0) rendition?.next(); else rendition?.prev();
+
+    // Горизонтальный свайп
+    if (Math.abs(dx) > SWIPE_DIST && Math.abs(dy) < SWIPE_MAX_Y && dt < SWIPE_MAX_DUR) {
+      if (dx < 0) rendition?.next();
+      else rendition?.prev();
+      return;
+    }
+
+    // Тап по краям: левая/правая треть экрана листают страницы
+    if (!moved && dt < TAP_MAX_DUR) {
+      // Не обрабатываем тапы по ссылкам внутри текста
+      const target = e.target;
+      if (target && target.closest && target.closest('a')) return;
+
+      const w = doc.documentElement.clientWidth || doc.body.clientWidth;
+      if (t.clientX < w * 0.33) rendition?.prev();
+      else if (t.clientX > w * 0.67) rendition?.next();
     }
   }, { passive: true });
 }

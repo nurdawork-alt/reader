@@ -22,9 +22,12 @@ export async function render() {
     emptyState.hidden = false;
   } else {
     emptyState.hidden = true;
-    for (const book of books) {
-      grid.appendChild(renderCard(book));
-    }
+    books.forEach((book, i) => {
+      const card = renderCard(book);
+      // Stagger: каждая следующая карточка появляется на 35ms позже (макс 10 шагов)
+      card.style.animationDelay = `${Math.min(i, 10) * 35}ms`;
+      grid.appendChild(card);
+    });
   }
 }
 

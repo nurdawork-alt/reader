@@ -13,6 +13,21 @@
   --accent: #3b82f6;
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
+
+  /* Animation timing */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 160ms;
+  --dur: 280ms;
+  --dur-slow: 420ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 :root[data-theme="dark"] {
@@ -65,6 +80,29 @@ body {
   inset: 0;
   display: flex;
   flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: scale(0.985);
+  transition:
+    opacity var(--dur) var(--ease),
+    transform var(--dur) var(--ease),
+    visibility 0s linear var(--dur);
+  will-change: opacity, transform;
+}
+.view.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition-delay: 0s;
+}
+/* Reader приходит снизу слегка — drill-in ощущение */
+#reader-view {
+  transform: translateY(14px) scale(0.995);
+}
+#reader-view.active {
+  transform: none;
 }
 
 /* ---------- Top bar ---------- */
@@ -101,8 +139,12 @@ body {
   padding: 8px 10px;
   border-radius: 10px;
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
 }
-.icon-btn:active { background: var(--border); }
+.icon-btn:active {
+  background: var(--border);
+  transform: scale(0.9);
+}
 
 /* ---------- Library ---------- */
 
@@ -117,11 +159,15 @@ body {
   padding-bottom: calc(96px + var(--safe-bottom));
 }
 
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
 .book-card {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -129,8 +175,16 @@ body {
   color: inherit;
   cursor: pointer;
   font: inherit;
+  animation: cardIn var(--dur-slow) var(--ease-out) both;
+  transition: transform var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
-.book-card:active { transform: scale(0.98); }
+.book-card:active {
+  transform: scale(0.96);
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+}
 
 .cover {
   aspect-ratio: 2 / 3;
@@ -213,11 +267,21 @@ body {
   font-size: 30px;
   line-height: 56px;
   text-align: center;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4), 0 2px 6px rgba(0,0,0,0.15);
   cursor: pointer;
   user-select: none;
+  transition: transform var(--dur-fast) var(--ease-spring),
+              box-shadow var(--dur-fast) var(--ease);
+  animation: fabIn var(--dur-slow) var(--ease-spring) both 200ms;
 }
-.fab:active { transform: scale(0.95); }
+.fab:active {
+  transform: scale(0.9);
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.3);
+}
+@keyframes fabIn {
+  from { opacity: 0; transform: scale(0.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
 
 /* ---------- Reader ---------- */
 
@@ -225,6 +289,54 @@ body {
   flex: 1;
   position: relative;
   background: var(--bg);
+}
+
+/* Loading spinner при открытии книги */
+.reader-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease), visibility 0s linear var(--dur);
+  z-index: 2;
+}
+.reader-loading.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Тонкая полоска прогресса */
+.progress-track {
+  height: 2px;
+  background: var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.progress-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width var(--dur-slow) var(--ease-out);
 }
 
 .reader-controls {
@@ -242,8 +354,14 @@ body {
   border: none;
   color: var(--fg);
   font-size: 28px;
-  padding: 6px 16px;
+  padding: 6px 20px;
   cursor: pointer;
+  border-radius: 12px;
+  transition: transform var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+.nav-btn:active {
+  transform: scale(0.88);
+  background: var(--border);
 }
 
 .progress-label {
@@ -252,21 +370,74 @@ body {
 }
 
 /* ---------- Panels (TOC + Settings) ---------- */
+/* iOS-стиль bottom-sheet: выезжают снизу, backdrop с blur */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(6px) saturate(120%);
+  backdrop-filter: blur(6px) saturate(120%);
+  z-index: 15;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease), visibility 0s linear var(--dur);
+}
+.backdrop.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
 
 .panel {
   position: fixed;
-  inset: 0;
-  background: var(--bg);
-  z-index: 10;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  max-height: 86vh;
+  background: var(--surface);
+  z-index: 20;
   display: flex;
   flex-direction: column;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -16px 48px rgba(0,0,0,0.28);
+  transform: translateY(100%);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform var(--dur) var(--ease-out),
+    visibility 0s linear var(--dur);
+  overflow: hidden;
+  will-change: transform;
+}
+.panel.open {
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+/* iOS-стиль grabber */
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(127, 127, 127, 0.35);
+  pointer-events: none;
 }
 
 .panel-header {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
-  padding-top: calc(10px + var(--safe-top));
+  padding: 22px 12px 10px;
   border-bottom: 1px solid var(--border);
   gap: 8px;
 }
@@ -295,11 +466,16 @@ body {
   flex: 1;
   background: none;
   border: 1px solid var(--border);
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
   color: var(--fg);
   cursor: pointer;
+  font: inherit;
+  transition: background-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
 }
+.tab-btn:active { transform: scale(0.96); }
 .tab-btn.active {
   background: var(--accent);
   color: #fff;
@@ -312,12 +488,13 @@ body {
   background: none;
   border: none;
   border-bottom: 1px solid var(--border);
-  padding: 12px;
+  padding: 14px 12px;
   text-align: left;
   color: var(--fg);
   font: inherit;
   cursor: pointer;
   line-height: 1.35;
+  transition: background-color var(--dur-fast) var(--ease);
 }
 .toc-row:active, .search-row:active { background: var(--border); }
 .search-row mark { background: rgba(255, 215, 0, 0.4); color: inherit; padding: 0 2px; border-radius: 2px; }
@@ -361,7 +538,11 @@ body {
   color: var(--fg);
   font: inherit;
   cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
 }
+.segmented button:active { transform: scale(0.96); }
 .segmented button.active {
   background: var(--accent);
   color: #fff;
